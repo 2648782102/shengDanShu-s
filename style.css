@@ -1,37 +1,73 @@
 :root {
-    --primary-color: #c0392b; /* 圣诞红 */
-    --secondary-color: #27ae60; /* 圣诞绿 */
-    --accent-color: #f1c40f; /* 金色 */
+    --primary-color: #c0392b;
+    --secondary-color: #27ae60;
+    --accent-color: #f1c40f;
     --text-light: #ecf0f1;
 }
 
 body {
     margin: 0;
     overflow: hidden;
-    background: linear-gradient(to bottom, #090919 0%, #1b2845 100%); /* 星空渐变 */
+    background: linear-gradient(to bottom, #090919 0%, #1b2845 100%);
     font-family: 'Poppins', sans-serif;
     color: var(--text-light);
+    /* 禁止移动端双击缩放和橡皮筋效果 */
+    touch-action: none; 
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 #canvas-container {
     position: fixed;
     top: 0; left: 0;
     z-index: 1;
+    width: 100vw;
+    height: 100vh;
 }
 
+/* --- UI 面板适配 --- */
 #ui-panel {
     position: absolute;
+    /* 默认桌面端样式 */
     top: 30px; left: 30px;
     z-index: 10;
     background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(15px); /* 磨砂玻璃 */
+    backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
-    padding: 25px;
+    padding: 20px;
     border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.15);
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
     max-width: 320px;
+    max-height: 80vh; /* 防止过高 */
+    overflow-y: auto; /* 内容过多可滚动 */
     transition: all 0.3s ease;
+}
+
+/* --- 移动端核心适配 --- */
+@media (max-width: 768px) {
+    #ui-panel {
+        top: auto;
+        left: 50%;
+        bottom: 20px; /* 沉底显示 */
+        transform: translateX(-50%); /* 居中 */
+        width: 85%; /* 宽度占比 */
+        max-width: none;
+        padding: 15px;
+        /* 适配刘海屏底部安全区 */
+        margin-bottom: env(safe-area-inset-bottom);
+        max-height: 40vh; /* 手机上只占屏幕下半部分 */
+        background: rgba(0, 0, 0, 0.4); /* 手机上深色背景更易读 */
+    }
+
+    #ui-panel h1 {
+        font-size: 1.4rem; /* 标题改小 */
+        margin-bottom: 10px;
+    }
+    
+    .gestures-box {
+        display: none; /* 手机上默认隐藏手势说明，节省空间，或者做成折叠 */
+    }
 }
 
 #ui-panel h1 {
@@ -43,10 +79,7 @@ body {
     text-shadow: 0 2px 4px rgba(0,0,0,0.5);
 }
 
-.control-group {
-    margin-bottom: 15px;
-    text-align: center;
-}
+.control-group { margin-bottom: 15px; text-align: center; }
 
 .btn {
     padding: 12px 24px;
@@ -60,12 +93,11 @@ body {
     letter-spacing: 1px;
     font-size: 0.9rem;
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    /* 增加触摸热区 */
+    min-width: 120px; 
 }
 
-.primary-btn {
-    background: var(--primary-color);
-    color: white;
-}
+.primary-btn { background: var(--primary-color); color: white; }
 .primary-btn:hover { background: #e74c3c; transform: translateY(-2px); }
 
 .secondary-btn {
@@ -93,6 +125,7 @@ body {
 .gestures-box h3 { margin: 0 0 10px 0; color: var(--accent-color); font-size: 1.1rem;}
 .gestures-box p { margin: 5px 0; font-size: 0.85rem; opacity: 0.9; }
 
+/* --- 摄像头窗口适配 --- */
 .cam-wrapper {
     position: absolute;
     bottom: 20px; right: 20px;
@@ -101,8 +134,19 @@ body {
     overflow: hidden;
     box-shadow: 0 8px 20px rgba(0,0,0,0.4);
     border: 3px solid rgba(255,255,255,0.2);
-    display: none; /* Initial hidden */
+    display: none;
 }
+
+@media (max-width: 768px) {
+    .cam-wrapper {
+        top: 20px; right: 20px; /* 移到右上角 */
+        bottom: auto;
+        width: 100px; /* 缩小尺寸 */
+        border-width: 2px;
+    }
+    #webcam { width: 100px; }
+}
+
 #webcam {
     width: 220px; height: auto;
     transform: scaleX(-1);

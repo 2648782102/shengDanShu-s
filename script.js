@@ -7,9 +7,11 @@ let scene, camera, renderer, controls;
 let treeGroup, snowSystem, ground;
 let handLandmarker, webcam;
 let lightsList = []; 
-let treeLayers = []; // 存储树叶层，用于“绽放”动画
+let treeLayers = []; 
 
-// 状态控制
+// 判定是否为移动设备
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 let gameState = {
     isRotating: true,
     rotationSpeed: 0.003,
@@ -18,9 +20,9 @@ let gameState = {
     isMusicPlaying: false,
     zoomedGift: null, 
     originalCameraPos: new THREE.Vector3(),
-    isBlossomed: false, // 新增：圣诞树是否处于绽放状态
-    blossomProgress: 0.0, // 绽放动画进度 (0到1)
-    blossomDirection: 0 // -1: 聚合, 0: 停止, 1: 绽放
+    isBlossomed: false, 
+    blossomProgress: 0.0, 
+    blossomDirection: 0 
 };
 
 const raycaster = new THREE.Raycaster();
@@ -33,17 +35,23 @@ setupMediaPipe();
 setupUIEvents();
 
 function init() {
-    // 1. 场景与相机
+    // 1. 场景
     scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x1b2845, 0.015);
 
+    // 2. 相机 - 移动端适配视角
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
-    camera.position.set(0, 12, 35);
+    // 移动端由于是竖屏，需要离远一点才能看到全貌
+    const startZ = isMobile ? 45 : 35; 
+    const startY = isMobile ? 10 : 12;
+    camera.position.set(0, startY, startZ);
     gameState.originalCameraPos.copy(camera.position);
 
+    // 3. 渲染器
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // 移动端限制像素比，防止过热
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.getElementById('canvas-container').appendChild(renderer.domElement);
@@ -53,20 +61,19 @@ function init() {
     controls.dampingFactor = 0.05;
     controls.maxPolarAngle = Math.PI / 2 - 0.1; 
     controls.minDistance = 5;
-    controls.maxDistance = 60;
+    controls.maxDistance = 80;
 
-    // 2. 环境与灯光
     setupEnvironment();
-
-    // 3. 创建主体
     createStylizedTree();
     createSnow();
 
-    // 4. 事件监听
     window.addEventListener('resize', onWindowResize);
-    window.addEventListener('click', onMouseClick);
     
-    // 隐藏 Loading
+    // 兼容触摸和点击
+    window.addEventListener('click', onMouseClick);
+    window.addEventListener('touchstart', onTouchStart, { passive: false });
+
+    // Hide Loading
     setTimeout(() => {
         const loading = document.getElementById('loading');
         loading.style.opacity = 0;
@@ -74,25 +81,23 @@ function init() {
     }, 1500);
 }
 
-// --- 环境设置 ---
 function setupEnvironment() {
-    // 环境光
     const ambientLight = new THREE.AmbientLight(0xffe0b5, 0.4);
     scene.add(ambientLight);
 
-    // 主光源
     const mainLight = new THREE.DirectionalLight(0xffd1a6, 1.2);
     mainLight.position.set(20, 30, 20);
     mainLight.castShadow = true;
-    mainLight.shadow.mapSize.width = 2048;
-    mainLight.shadow.mapSize.height = 2048;
+    // 移动端降低阴影贴图分辨率
+    const shadowSize = isMobile ? 1024 : 2048;
+    mainLight.shadow.mapSize.width = shadowSize;
+    mainLight.shadow.mapSize.height = shadowSize;
     mainLight.shadow.camera.near = 0.5;
     mainLight.shadow.camera.far = 100;
     mainLight.shadow.camera.left = -30; mainLight.shadow.camera.right = 30;
     mainLight.shadow.camera.top = 30; mainLight.shadow.camera.bottom = -30;
     scene.add(mainLight);
 
-    // 地面
     const groundGeo = new THREE.PlaneGeometry(200, 200);
     const groundMat = new THREE.MeshStandardMaterial({ 
         color: 0xffffff, 
@@ -105,10 +110,10 @@ function setupEnvironment() {
     scene.add(ground);
 }
 
-// --- 创建低多边形风格圣诞树 ---
+// ... createStylizedTree 函数保持不变 ...
 function createStylizedTree() {
     treeGroup = new THREE.Group();
-    treeLayers = []; // 重置层数组
+    treeLayers = []; 
 
     const leafMat = new THREE.MeshStandardMaterial({
         color: 0x2d9e5b,
@@ -117,7 +122,7 @@ function createStylizedTree() {
     });
 
     const layerParams = [
-        { rTop: 0.5, rBot: 9, h: 8, y: 4, seg: 8, offset: 5.5 }, // offset用于绽放的中心偏移量
+        { rTop: 0.5, rBot: 9, h: 8, y: 4, seg: 8, offset: 5.5 }, 
         { rTop: 0.5, rBot: 7, h: 7, y: 9, seg: 8, offset: 4.5 },
         { rTop: 0.5, rBot: 5, h: 6, y: 13.5, seg: 7, offset: 3.5 },
         { rTop: 0.1, rBot: 3, h: 5, y: 17.5, seg: 6, offset: 2.5 }
@@ -135,7 +140,6 @@ function createStylizedTree() {
         mesh.position.y = p.y;
         mesh.castShadow = true; 
         
-        // 存储原始位置和绽放偏移量
         mesh.userData.originalY = p.y;
         mesh.userData.blossomOffset = p.offset;
         mesh.userData.layerIndex = index;
@@ -144,7 +148,6 @@ function createStylizedTree() {
         treeLayers.push(mesh);
     });
 
-    // 树干
     const trunkGeo = new THREE.CylinderGeometry(1.2, 1.6, 5, 8);
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a3a23, roughness: 0.9, flatShading: true });
     const trunk = new THREE.Mesh(trunkGeo, trunkMat);
@@ -152,82 +155,65 @@ function createStylizedTree() {
     trunk.castShadow = true;
     treeGroup.add(trunk);
 
-    // 顶部星星
     const starGeo = new THREE.OctahedronGeometry(1.2, 0);
     const starMat = new THREE.MeshStandardMaterial({ 
         color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 0.8, flatShading: true 
     });
     const star = new THREE.Mesh(starGeo, starMat);
     star.position.y = 20.5;
-    star.userData.originalY = 20.5; // 存储原始Y坐标
+    star.userData.originalY = 20.5;
     treeGroup.add(star);
     lightsList.push(star); 
 
-    // 装饰灯泡
     addDecorations();
 
     scene.add(treeGroup);
 }
-
-// --- 圣诞树“绽放”逻辑 ---
-
+// ... startBlossomAnimation, blossomTree, resetTree, updateBlossom, addDecorations 函数保持不变 ...
 function startBlossomAnimation() {
     if (gameState.isBlossomed) {
-        resetTree(); // 如果已经绽放，则收拢
+        resetTree(); 
     } else {
-        blossomTree(); // 否则，绽放
+        blossomTree(); 
     }
 }
 
 function blossomTree() {
-    gameState.blossomDirection = 1; // 标记为绽放
+    gameState.blossomDirection = 1; 
     gameState.isBlossomed = true;
-    gameState.isRotating = false; // 绽放时停止旋转
-    console.log("Tree Blossomed!");
+    gameState.isRotating = false; 
 }
 
 function resetTree() {
-    gameState.blossomDirection = -1; // 标记为聚合
+    gameState.blossomDirection = -1; 
     gameState.isBlossomed = false;
-    gameState.isRotating = true; // 收拢后恢复旋转
-    console.log("Tree Reset!");
+    gameState.isRotating = true; 
 }
 
 function updateBlossom() {
     if (gameState.blossomDirection === 0) return;
-
-    // 调整进度
-    gameState.blossomProgress += gameState.blossomDirection * 0.05; // 速度可以调整
+    gameState.blossomProgress += gameState.blossomDirection * 0.05; 
     gameState.blossomProgress = Math.min(1.0, Math.max(0.0, gameState.blossomProgress));
     
-    // 如果动画结束，停止方向
     if (gameState.blossomProgress === 1.0 && gameState.blossomDirection === 1) {
         gameState.blossomDirection = 0;
     } else if (gameState.blossomProgress === 0.0 && gameState.blossomDirection === -1) {
         gameState.blossomDirection = 0;
     }
 
-    // 更新树层位置
     treeLayers.forEach(layer => {
         const p = gameState.blossomProgress;
         const offset = layer.userData.blossomOffset * p;
-        
-        // 使用指数函数（或任何平滑函数）实现更自然的过渡效果
-        // 向上平移
         layer.position.y = layer.userData.originalY + offset; 
-
-        // 旋转平移，但由于树叶是圆柱，不需要径向位移
-        // 我们可以让它在展开时快速旋转一下
         layer.rotation.y = layer.userData.layerIndex * p * 0.5; 
     });
     
-    // 顶部星星的位移
     const star = lightsList[0];
     if (star.userData.originalY) {
-         star.position.y = star.userData.originalY + gameState.blossomProgress * 5; // 星星抬高
+         star.position.y = star.userData.originalY + gameState.blossomProgress * 5; 
     }
 }
-// --- 其他函数 (保持不变) ---
+
 function addDecorations() {
      const bulbColors = [0xff3333, 0xffd700, 0x3333ff, 0x00ff00, 0xffffff];
      for (let i = 0; i < 40; i++) {
@@ -250,7 +236,8 @@ function addDecorations() {
 }
 
 function createSnow() {
-    const particleCount = 1500;
+    // 移动端大量减少粒子数量以保证流畅度
+    const particleCount = isMobile ? 500 : 1500;
     const geo = new THREE.BufferGeometry();
     const pos = []; const vel = [];
     for (let i = 0; i < particleCount; i++) {
@@ -264,9 +251,8 @@ function createSnow() {
     scene.add(snowSystem);
 }
 
-// --- UI 与交互事件 ---
+// ... setupUIEvents, handleImageUpload, zoomToGift, resetCamera 保持不变 ...
 function setupUIEvents() {
-    // 音乐控制 (不变)
     const musicBtn = document.getElementById('music-btn');
     const bgMusic = document.getElementById('bg-music');
     musicBtn.addEventListener('click', () => {
@@ -278,13 +264,10 @@ function setupUIEvents() {
         gameState.isMusicPlaying = !gameState.isMusicPlaying;
     });
 
-    // 图片上传 (不变)
     document.getElementById('file-input').addEventListener('change', handleImageUpload);
-    // 摄像头开启 (不变)
     document.getElementById('cam-btn').addEventListener('click', enableCam);
 }
 
-// 处理照片上传，制作成精致的礼物盒 (不变)
 function handleImageUpload(event) {
     const files = event.target.files;
     if (!files.length) return;
@@ -324,37 +307,10 @@ function handleImageUpload(event) {
     });
 }
 
-// --- 鼠标点击交互 (查看照片) ---
-function onMouseClick(event) {
-    if (gameState.zoomedGift) {
-        resetCamera();
-        return;
-    }
-
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-    raycaster.setFromCamera(mouse, camera);
-
-    const intersects = raycaster.intersectObjects(treeGroup.children, true);
-    
-    for (let i = 0; i < intersects.length; i++) {
-        let target = intersects[i].object;
-        while(target && target.name !== 'gift' && target.parent !== treeGroup) {
-            target = target.parent;
-        }
-        
-        if (target && target.name === 'gift') {
-            zoomToGift(target);
-            break;
-        }
-    }
-}
-
 function zoomToGift(giftMesh) {
     gameState.zoomedGift = giftMesh;
     gameState.isRotating = false; 
-    controls.enabled = false; // 缩放时禁用用户自由控制
+    controls.enabled = false; 
 
     const targetPos = new THREE.Vector3();
     giftMesh.getWorldPosition(targetPos);
@@ -373,7 +329,6 @@ function zoomToGift(giftMesh) {
             controls.target.lerp(targetPos, progress);
             requestAnimationFrame(animateCamera);
         } else {
-            // 动画结束后，确保target和position设置好
              controls.target.copy(targetPos);
         }
     }
@@ -384,7 +339,7 @@ function zoomToGift(giftMesh) {
 function resetCamera() {
     gameState.zoomedGift = null;
     gameState.isRotating = true;
-    controls.enabled = true; // 恢复用户自由控制
+    controls.enabled = true; 
 
     const startPos = camera.position.clone();
     const endPos = gameState.originalCameraPos;
@@ -401,14 +356,57 @@ function resetCamera() {
             requestAnimationFrame(animateCameraBack);
         } else {
             document.getElementById('ui-panel').style.opacity = '1';
-            controls.target.copy(endTarget); // 确保controls目标回到原点
+            controls.target.copy(endTarget); 
         }
     }
     animateCameraBack();
 }
 
+// --- 交互事件处理 (核心修改) ---
+// 增加触摸支持，并将逻辑抽象出来
+function onTouchStart(event) {
+    if (event.touches.length > 1) return; // 忽略多指缩放
+    // 防止 OrbitControls 的冲突，这里只记录位置，逻辑交给 Click 处理，或者直接在此处处理
+    // 为了简单，我们复用 Raycaster 逻辑
+    
+    // 计算触摸点坐标
+    mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
+    
+    checkIntersection();
+}
 
-// --- MediaPipe 手势 (增加 OK 手势识别) ---
+function onMouseClick(event) {
+    // 鼠标点击
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    
+    checkIntersection();
+}
+
+function checkIntersection() {
+    if (gameState.zoomedGift) {
+        resetCamera();
+        return;
+    }
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(treeGroup.children, true);
+    
+    for (let i = 0; i < intersects.length; i++) {
+        let target = intersects[i].object;
+        while(target && target.name !== 'gift' && target.parent !== treeGroup) {
+            target = target.parent;
+        }
+        
+        if (target && target.name === 'gift') {
+            zoomToGift(target);
+            break;
+        }
+    }
+}
+
+// --- MediaPipe 手势 ---
 async function setupMediaPipe() {
     const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
     handLandmarker = await HandLandmarker.createFromOptions(vision, {
@@ -422,14 +420,21 @@ async function setupMediaPipe() {
 
 function enableCam() {
     webcam = document.getElementById('webcam');
-    navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+    // 移动端优先使用前置摄像头
+    const constraints = { video: { facingMode: "user", width: isMobile ? 320 : 640 } };
+    
+    navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
         webcam.srcObject = stream;
         document.querySelector('.cam-wrapper').style.display = 'block';
         webcam.addEventListener('loadeddata', predictWebcam);
         document.getElementById('cam-btn').style.display = 'none';
+    }).catch(err => {
+        console.error("摄像头开启失败", err);
+        alert("无法开启摄像头，请检查权限。");
     });
 }
 
+// ... predictWebcam, onWindowResize, animate 函数保持不变 ...
 let lastVideoTime = -1;
 async function predictWebcam() {
     if (handLandmarker && webcam.currentTime !== lastVideoTime) {
@@ -446,43 +451,34 @@ async function predictWebcam() {
             const indexTip = landmarks[8];
             const thumbTip = landmarks[4];
             
-            // 1. 握拳/张手判断 (用于旋转控制)
+            // 1. 握拳/张手
             const avgDist = fingersTips.reduce((acc, p) => acc + Math.hypot(p.x - wrist.x, p.y - wrist.y), 0) / 4;
 
             if (avgDist < 0.25) { 
                 targetSpeed = gameState.fastSpeed; 
-                console.log("✊ 握拳加速"); 
             } else if (avgDist > 0.35) { 
                 targetSpeed = 0; 
-                console.log("🖐 张手停止"); 
             } else {
                  targetSpeed = gameState.baseSpeed;
             }
             
-            // 2. OK 手势判断 (用于绽放)
-            // OK 手势：拇指尖(4)和食指尖(8)非常靠近
+            // 2. OK 手势
             const distThumbIndex = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
-            // 同时，其他手指应该伸直 (中指尖(12)和手腕(0)距离较远)
             const middleWristDist = Math.hypot(landmarks[12].x - wrist.x, landmarks[12].y - wrist.y);
 
             if (distThumbIndex < 0.06 && middleWristDist > 0.3) {
                 isOKGesture = true;
-                console.log("👌 OK 手势：触发绽放/聚合");
             }
         }
         
-        // 旋转速度平滑过渡 (Lerp)
         gameState.rotationSpeed += (targetSpeed - gameState.rotationSpeed) * 0.1;
         
-        // 绽放手势触发逻辑：只在手势出现的那一刻触发一次
         if (isOKGesture) {
-            // 确保只触发一次：使用一个简单的计时器或状态来限制
             if (!webcam.gestureLock || performance.now() - webcam.gestureLock > 1000) {
                  startBlossomAnimation();
                  webcam.gestureLock = performance.now();
             }
         } else {
-             // 允许在没有手势的 1 秒后再次触发
              if (webcam.gestureLock && performance.now() - webcam.gestureLock > 1000) {
                  webcam.gestureLock = 0;
              }
@@ -495,24 +491,27 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    
+    // 窗口大小变化时（比如横竖屏切换）可能需要调整相机距离
+    // 简单处理：如果是移动端且相机不在特写模式，重置位置
+    if (isMobile && !gameState.zoomedGift) {
+       // 这里可以做更细致的逻辑，简化处理直接保持当前位置即可
+       // 或 camera.position.set(0, 10, 45);
+    }
 }
 
-// --- 动画循环 ---
 function animate() {
     requestAnimationFrame(animate);
     const time = performance.now() * 0.001;
 
-    // 1. 旋转树
     if (treeGroup && gameState.isRotating && !gameState.zoomedGift) {
         treeGroup.rotation.y += gameState.rotationSpeed;
     }
 
-    // 2. 绽放动画更新 (新增)
     if (gameState.blossomDirection !== 0) {
         updateBlossom();
     }
 
-    // 3. 灯光闪烁动画
     lightsList.forEach(bulb => {
         if (bulb.material.emissiveIntensity) {
              const intensity = bulb.userData.baseIntensity + Math.sin(time * 5 + bulb.position.x) * 0.2;
@@ -520,7 +519,6 @@ function animate() {
         }
     });
 
-    // 4. 雪花飘落
     if (snowSystem) {
         const positions = snowSystem.geometry.attributes.position.array;
         const vels = snowSystem.userData.velocities;
