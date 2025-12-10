@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ 专属圣诞惊喜 ✨</title>
+    <link rel="stylesheet" href="style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Poppins:wght@300;400&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+
+    <div id="loading">
+        <div class="loader-content">
+            <h1>正在为你布置圣诞场景...🎄</h1>
+            <p>Loading Magic...</p>
+        </div>
+    </div>
+
+    <div id="ui-panel">
+        <h1>My Christmas Gift For You</h1>
+
+        <div class="control-group">
+            <label for="file-input" class="btn primary-btn">🎁 上传我们的照片</label>
+            <input type="file" id="file-input" multiple accept="image/*">
+        </div>
+
+        <div class="control-group music-control">
+            <button id="music-btn" class="btn secondary-btn">🎵 播放音乐</button>
+        </div>
+
+        <div class="gestures-box">
+            <h3>✨ 手势魔法 & 互动</h3>
+            <p>👆 <b>点击照片</b>：查看特写大图</p>
+            <p>🖐 <b>张开手掌</b>：让时间静止 (停止)</p>
+            <p>✊ <b>握紧拳头</b>：开启疯狂模式 (加速)</p>
+            <p>👌 <b>OK 手势</b>：让圣诞树<b>“绽放”</b>！</p> <button id="cam-btn" class="btn cam-btn">开启摄像头手势</button>
+        </div>
+    </div>
+
+    <div class="cam-wrapper">
+        <video id="webcam" autoplay playsinline></video>
+    </div>
+
+    <audio id="bg-music" loop>
+        <source src="music.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <div id="canvas-container"></div>
+
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>
