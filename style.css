@@ -4,6 +4,18 @@
     --accent-color: #f1c40f; /* 金色 */
     --text-light: #ecf0f1;
     --modal-bg: rgba(27, 40, 69, 0.95); /* 深蓝色半透明背景 */
+    /* 安全区域变量 */
+    --safe-area-top: env(safe-area-inset-top);
+    --safe-area-bottom: env(safe-area-inset-bottom);
+    --safe-area-left: env(safe-area-inset-left);
+    --safe-area-right: env(safe-area-inset-right);
+}
+
+/* 重置和基础样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 body {
@@ -17,149 +29,13 @@ body {
     user-select: none;
 }
 
-#canvas-container {
-    position: fixed;
-    top: 0; left: 0;
-    z-index: 1;
-    width: 100vw;
-    height: 100vh;
-}
-
-/* --- UI 面板 (桌面版样式) --- */
-#ui-panel {
-    position: absolute;
-    top: 30px; left: 30px;
-    z-index: 10;
-    background: rgba(255, 255, 255, 0.1); 
-    backdrop-filter: blur(15px); 
-    -webkit-backdrop-filter: blur(15px);
-    padding: 20px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    max-width: 380px; 
-    max-height: 80vh; 
-    overflow-y: auto; 
-    transition: all 0.3s ease;
-}
-
-/* 桌面端隐藏移动端互动按钮 */
-#mobile-gesture-btn-container {
-    display: none;
-}
-
-
-/* --- 移动端核心适配 --- */
-@media (max-width: 768px) {
-    #ui-panel {
-        top: auto;
-        left: 50%;
-        bottom: 20px; 
-        transform: translateX(-50%); 
-        width: 90%; 
-        max-width: none;
-        padding: 15px;
-        margin-bottom: env(safe-area-inset-bottom);
-        max-height: 50vh; 
-        background: rgba(0, 0, 0, 0.4); 
-    }
-
-    /* 优化移动端按钮尺寸 (修复按钮过大问题) */
-    .btn {
-        padding: 10px 15px; /* 减小内边距 */
-        font-size: 0.9rem;
-        min-width: auto; /* 取消最小宽度限制 */
-    }
-}
-
-
-/* --- 通用样式 (保持不变) --- */
-#ui-panel h1 {
-    font-family: 'Cinzel Decorative', cursive;
-    margin: 0 0 20px 0;
-    color: var(--accent-color);
-    text-align: center;
-    font-size: 1.8rem;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-}
-
-.control-group { margin-bottom: 15px; text-align: center; }
-
-.btn {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 50px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    display: inline-block;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-size: 0.9rem;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    min-width: 120px; 
-}
-
-.primary-btn { background: var(--primary-color); color: white; }
-.primary-btn:hover { background: #e74c3c; transform: translateY(-2px); }
-
-.secondary-btn {
-    background: transparent;
-    border: 2px solid var(--accent-color);
-    color: var(--accent-color);
-}
-.secondary-btn:hover { background: var(--accent-color); color: #000; }
-
-.cam-btn {
-    background: var(--secondary-color);
-    color: white;
-    width: 100%;
-    margin-top: 5px;
-    border: none;
-}
-.cam-btn:hover { background: #2ecc71; }
-
-#file-input { display: none; }
-
-.gestures-box {
-    background: rgba(0, 0, 0, 0.2);
-    padding: 15px;
-    border-radius: 12px;
-    margin-top: 20px;
-}
-.gestures-box h3 { margin: 0 0 10px 0; color: var(--accent-color); font-size: 1.1rem;}
-.gestures-box p { margin: 5px 0; font-size: 0.85rem; opacity: 0.9; }
-
-.cam-wrapper {
-    position: absolute;
-    bottom: 20px; right: 20px;
-    z-index: 100;
-    border-radius: 15px;
-    overflow: hidden;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-    border: 3px solid rgba(255,255,255,0.2);
-    display: none;
-}
-
-@media (max-width: 768px) {
-    .cam-wrapper {
-        top: 20px; right: 20px; 
-        bottom: auto;
-        width: 100px; 
-        border-width: 2px;
-    }
-    #webcam { width: 100px; }
-}
-
-#webcam {
-    width: 220px; height: auto;
-    transform: scaleX(-1);
-    display: block;
-}
-
+/* 加载页面 */
 #loading {
     position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: #090919;
     display: flex;
     justify-content: center;
@@ -167,20 +43,194 @@ body {
     z-index: 999;
     transition: opacity 0.6s ease-out;
 }
-.loader-content { text-align: center; color: var(--accent-color); }
 
+.loader-content {
+    text-align: center;
+    color: var(--accent-color);
+}
 
-/* --- MODAL (弹窗) 样式 --- */
-.modal-overlay {
+.loader-content h1 {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+}
+
+.loader-content p {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* Canvas容器 */
+#canvas-container {
     position: fixed;
-    top: 0; left: 0;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    width: 100vw;
+    height: 100vh;
+}
+
+/* --- 移动端优先设计 --- */
+
+/* 现代化的UI面板 - 底部浮动导航栏 */
+#ui-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    padding: 10px 15px calc(10px + var(--safe-area-bottom));
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+/* 按钮网格容器 */
+.button-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    width: 100%;
+    max-width: 400px;
+}
+
+/* 现代化按钮样式 */
+.btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    min-height: 44px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* 主按钮样式 */
+.primary-btn {
+    background: linear-gradient(135deg, var(--primary-color), #e74c3c);
+    color: white;
+    border: none;
+}
+
+.primary-btn:hover,
+.primary-btn:active {
+    background: linear-gradient(135deg, #e74c3c, var(--primary-color));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* 次要按钮样式 */
+.secondary-btn {
+    background: transparent;
+    border: 2px solid var(--accent-color);
+    color: var(--accent-color);
+}
+
+.secondary-btn:hover,
+.secondary-btn:active {
+    background: var(--accent-color);
+    color: #000;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* 摄像头按钮样式 */
+.cam-btn {
+    background: linear-gradient(135deg, var(--secondary-color), #2ecc71);
+    color: white;
+    border: none;
+    grid-column: 1 / -1;
+}
+
+.cam-btn:hover,
+.cam-btn:active {
+    background: linear-gradient(135deg, #2ecc71, var(--secondary-color));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* 互动说明按钮样式 */
+.info-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: var(--text-light);
+    grid-column: 1 / -1;
+}
+
+.info-btn:hover,
+.info-btn:active {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* 音乐控制容器 */
+.music-control {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    max-width: 400px;
+}
+
+/* 音乐按钮样式 */
+.music-control .btn {
+    flex: 1;
+    padding: 10px 15px;
+    font-size: 0.85rem;
+}
+
+/* 隐藏文件输入 */
+input[type="file"] {
+    display: none;
+}
+
+/* 摄像头视频容器 */
+.cam-wrapper {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    display: none;
+    width: 120px;
+    height: 90px;
+}
+
+#webcam {
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.6); 
+    transform: scaleX(-1);
+    object-fit: cover;
+}
+
+/* 互动说明弹窗 */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 500; 
+    z-index: 500;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
@@ -193,16 +243,17 @@ body {
 
 .modal-content {
     background: var(--modal-bg);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
     padding: 30px;
-    border-radius: 15px;
+    border-radius: 20px;
     max-width: 90%;
     width: 400px;
     text-align: center;
     border: 2px solid var(--accent-color);
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
-    transform: translateY(-50px);
-    transition: transform 0.3s ease, opacity 0.3s ease;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.6);
+    transform: translateY(30px);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
     opacity: 0;
 }
 
@@ -220,14 +271,172 @@ body {
 }
 
 .modal-content p {
-    margin: 10px 0;
+    margin: 12px 0;
     font-size: 1rem;
-    line-height: 1.5;
+    line-height: 1.6;
     text-align: left;
     padding-left: 20px;
 }
 
 .modal-content .btn {
     margin-top: 25px;
-    width: 80%;
+    padding: 12px 30px;
+    font-size: 1rem;
+    min-width: 150px;
+}
+
+/* 桌面端手势说明 - 移动端隐藏 */
+.gestures-box {
+    display: none;
+}
+
+/* 隐藏移动端手势按钮容器 - 使用新的布局 */
+#mobile-gesture-btn-container {
+    display: none;
+}
+
+/* 控制组 - 移动端隐藏，使用新的布局 */
+.control-group {
+    display: none;
+}
+
+/* --- 桌面端适配 --- */
+@media (min-width: 769px) {
+    /* 恢复桌面端UI面板 */
+    #ui-panel {
+        position: absolute;
+        top: 30px;
+        left: 30px;
+        bottom: auto;
+        width: 380px;
+        max-width: 380px;
+        padding: 20px;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    /* 恢复桌面端按钮网格显示 */
+    .button-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        width: 100%;
+        max-width: none;
+    }
+    
+    /* 恢复桌面端手势说明 */
+    .gestures-box {
+        display: block;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 15px;
+        border-radius: 12px;
+        margin-top: 10px;
+        width: 100%;
+    }
+    
+    .gestures-box h3 {
+        margin: 0 0 10px 0;
+        color: var(--accent-color);
+        font-size: 1.1rem;
+    }
+    
+    .gestures-box p {
+        margin: 5px 0;
+        font-size: 0.85rem;
+        opacity: 0.9;
+    }
+    
+    /* 桌面端音乐控制样式 */
+    .music-control {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        width: 100%;
+    }
+    
+    /* 桌面端按钮样式 */
+    .btn {
+        padding: 12px 24px;
+        font-size: 0.9rem;
+        min-width: 120px;
+        display: inline-block;
+        width: 100%;
+        max-width: none;
+    }
+    
+    /* 桌面端主按钮样式 */
+    .primary-btn {
+        width: 100%;
+    }
+    
+    /* 桌面端音乐按钮样式 */
+    .music-control .btn {
+        flex: 1;
+        width: auto;
+    }
+    
+    /* 桌面端摄像头按钮样式 */
+    .cam-btn {
+        grid-column: auto;
+        width: 100%;
+    }
+    
+    /* 桌面端互动说明按钮样式 */
+    .info-btn {
+        grid-column: auto;
+        width: 100%;
+    }
+    
+    /* 隐藏桌面端的互动说明按钮容器 */
+    #mobile-gesture-btn-container {
+        display: none;
+    }
+    
+    /* 控制组 - 桌面端隐藏 */
+    .control-group {
+        display: none;
+    }
+}
+
+/* 移除桌面端专用内容 */
+.desktop-only {
+    display: none;
+}
+
+/* --- 小屏幕移动端优化 --- */
+@media (max-width: 360px) {
+    .btn {
+        padding: 10px 16px;
+        font-size: 0.85rem;
+        gap: 6px;
+    }
+    
+    .button-grid {
+        gap: 8px;
+    }
+    
+    .music-control {
+        gap: 8px;
+    }
+    
+    .modal-content {
+        padding: 20px 15px;
+        margin: 0 15px;
+    }
+    
+    .modal-content h3 {
+        font-size: 1.3rem;
+        margin-bottom: 15px;
+    }
+    
+    .modal-content p {
+        font-size: 0.9rem;
+        padding-left: 15px;
+    }
 }

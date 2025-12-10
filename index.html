@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta http-equiv="Permissions-Policy" content="unload=()">
     <title>✨ 专属圣诞惊喜 ✨</title>
     <link rel="stylesheet" href="style.css">
     <link
@@ -21,32 +22,37 @@
     </div>
 
     <div id="ui-panel">
-        
-        <div class="control-group">
-            <label for="file-input" class="btn primary-btn">🎁 上传我们的照片</label>
-            <input type="file" id="file-input" multiple accept="image/*">
-        </div>
-
-        <div class="control-group music-control" style="display: flex; gap: 10px; justify-content: center;">
-            <input type="file" id="music-input" accept="audio/*" style="display: none;">
-            <label for="music-input" class="btn secondary-btn" style="flex: 1; min-width: auto; padding: 12px 10px;">
-                📂 选歌
+        <!-- 移动端优先的按钮网格布局 -->
+        <div class="button-grid">
+            <!-- 上传照片按钮 -->
+            <label for="file-input" class="btn primary-btn">
+                🎁 上传照片
             </label>
-            <button id="music-btn" class="btn secondary-btn" style="flex: 2;">
-                🎵 播放音乐
-            </button>
-        </div>
+            <input type="file" id="file-input" multiple accept="image/*">
 
-        <div class="control-group">
-            <button id="cam-btn" class="btn cam-btn">📸 开启摄像头手势</button>
-        </div>
-        
-        <div class="control-group" id="mobile-gesture-btn-container">
-            <button id="show-gesture-modal-btn" class="btn secondary-btn" style="width: 100%; border-color: var(--secondary-color); color: var(--secondary-color);">
+            <!-- 音乐控制区 -->
+            <div class="music-control">
+                <input type="file" id="music-input" accept="audio/*">
+                <label for="music-input" class="btn secondary-btn">
+                    📂 选歌
+                </label>
+                <button id="music-btn" class="btn secondary-btn">
+                    🎵 播放
+                </button>
+            </div>
+
+            <!-- 摄像头按钮 -->
+            <button id="cam-btn" class="btn cam-btn">
+                📸 开启手势
+            </button>
+
+            <!-- 互动说明按钮 -->
+            <button id="show-gesture-modal-btn" class="btn info-btn">
                 ✨ 互动说明
             </button>
         </div>
 
+        <!-- 桌面端手势说明 -->
         <div class="gestures-box">
             <h3>✨ 手势魔法 & 互动</h3>
             <p>👆 <b>点击照片</b>：查看特写大图</p>
@@ -73,7 +79,8 @@
     </div>
 
     <audio id="bg-music" loop>
-        </audio>
+        <source src="./ggg.mp3" type="audio/mpeg">
+    </audio>
 
     <div id="canvas-container"></div>
 

@@ -7,7 +7,7 @@ let scene, camera, renderer, controls;
 let treeGroup, snowSystem, ground;
 let handLandmarker, webcam;
 let lightsList = []; 
-let treeLayers = []; 
+let treeLayers = [];
 
 // 判定是否为移动设备
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -29,6 +29,10 @@ let gameState = {
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
+
+// MediaPipe 手势识别相关变量 - 移到前面确保初始化
+let lastVideoTime = -1;
+let lastPredictionTime = 0;
 
 // --- 初始化 ---
 init();
@@ -58,10 +62,21 @@ function init() {
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
+    controls.dampingFactor = isMobile ? 0.1 : 0.05;
     controls.maxPolarAngle = Math.PI / 2 - 0.1; 
     controls.minDistance = 5;
     controls.maxDistance = 80;
+    // 优化移动端控制
+    if (isMobile) {
+        controls.touches = {
+            ONE: THREE.TOUCH.ROTATE,
+            TWO: THREE.TOUCH.DOLLY_PAN
+        };
+        controls.enableZoom = true;
+        controls.enablePan = false;
+        controls.rotateSpeed = 0.8;
+        controls.zoomSpeed = 0.5;
+    }
 
     setupEnvironment();
     createStylizedTree();
@@ -116,7 +131,9 @@ function createStylizedTree() {
     const leafMat = new THREE.MeshStandardMaterial({
         color: 0x2d9e5b,
         roughness: 0.7,
-        flatShading: true
+        flatShading: true,
+        transparent: true,
+        opacity: 1.0
     });
 
     const layerParams = [
@@ -173,6 +190,10 @@ function startBlossomAnimation() {
         resetTree(); 
     } else {
         blossomTree(); 
+        // 绽放时增强雪花效果
+        if (snowSystem) {
+            snowSystem.material.opacity = 1.0;
+        }
     }
 }
 
@@ -186,11 +207,18 @@ function resetTree() {
     gameState.blossomDirection = -1; 
     gameState.isBlossomed = false;
     gameState.isRotating = true; 
+    // 重置雪花效果
+    if (snowSystem) {
+        snowSystem.material.opacity = 0.7;
+    }
 }
 
 function updateBlossom() {
     if (gameState.blossomDirection === 0) return;
-    gameState.blossomProgress += gameState.blossomDirection * 0.05; 
+    
+    // 使用缓动函数，让动画更流畅
+    const easeFactor = gameState.blossomDirection > 0 ? 0.08 : 0.1;
+    gameState.blossomProgress += gameState.blossomDirection * easeFactor; 
     gameState.blossomProgress = Math.min(1.0, Math.max(0.0, gameState.blossomProgress));
     
     if (gameState.blossomProgress === 1.0 && gameState.blossomDirection === 1) {
@@ -199,27 +227,110 @@ function updateBlossom() {
         gameState.blossomDirection = 0;
     }
 
+    // 计算绽放进度的缓动值
+    let easedProgress;
+    if (gameState.blossomDirection > 0) {
+        // 绽放时使用加速缓动
+        easedProgress = 1 - Math.pow(1 - gameState.blossomProgress, 3);
+    } else {
+        // 重置时使用减速缓动
+        easedProgress = Math.pow(gameState.blossomProgress, 3);
+    }
+
     treeLayers.forEach(layer => {
-        const p = gameState.blossomProgress;
+        const p = easedProgress;
+        
+        // 垂直位移效果
         const offset = layer.userData.blossomOffset * p;
         layer.position.y = layer.userData.originalY + offset; 
-        layer.rotation.y = layer.userData.layerIndex * p * 0.5; 
+        
+        // 旋转效果
+        layer.rotation.y = layer.userData.layerIndex * p * 0.8; 
+        
+        // 缩放效果 - 增强绽放感
+        const scaleFactor = 1 + p * 0.2;
+        layer.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        
+        // 透明度变化
+        layer.material.opacity = 1 - p * 0.1;
     });
     
+    // 处理礼物跟随绽放动画，避免重叠
+    treeGroup.children.forEach(child => {
+        if (child.name === "gift") {
+            const p = easedProgress;
+            
+            // 获取礼物的原始位置（如果没有保存，先保存）
+            if (!child.userData.originalPosition) {
+                child.userData.originalPosition = child.position.clone();
+            }
+            
+            const originalPos = child.userData.originalPosition;
+            
+            // 估算礼物所属树层
+            const layerIndex = Math.floor((originalPos.y - 2) / 4);
+            
+            // 跟随树层的垂直移动
+            const treeLayerOffset = layerIndex * 3 * p;
+            
+            // 径向偏移，使礼物向外扩散，避免重叠
+            const radialOffset = originalPos.length() * p * 0.15;
+            const direction = new THREE.Vector3(originalPos.x, 0, originalPos.z).normalize();
+            
+            // 更新礼物位置
+            child.position.x = originalPos.x + direction.x * radialOffset;
+            child.position.y = originalPos.y + treeLayerOffset;
+            child.position.z = originalPos.z + direction.z * radialOffset;
+            
+            // 礼物缩放效果
+            const giftScale = 1 + p * 0.15;
+            child.scale.set(giftScale, giftScale, giftScale);
+            
+            // 礼物旋转效果
+            child.rotation.y += p * 0.02;
+        }
+    });
+    
+    // 星星效果增强
     const star = lightsList[0];
     if (star.userData.originalY) {
-         star.position.y = star.userData.originalY + gameState.blossomProgress * 5; 
+        // 垂直移动
+        star.position.y = star.userData.originalY + easedProgress * 7;
+        
+        // 缩放效果
+        const starScale = 1 + easedProgress * 0.5;
+        star.scale.set(starScale, starScale, starScale);
+        
+        // 增强发光效果
+        if (star.material.emissiveIntensity) {
+            star.material.emissiveIntensity = 0.8 + easedProgress * 1.2;
+        }
+    }
+    
+    // 增强灯光效果
+    lightsList.forEach((light, index) => {
+        if (light !== star && light.material.emissiveIntensity) {
+            const intensityVariation = Math.sin(Date.now() * 0.002 + index) * 0.3;
+            light.material.emissiveIntensity = 0.6 + easedProgress * 0.8 + intensityVariation;
+        }
+    });
+    
+    // 旋转整个树组，增强视觉效果
+    if (gameState.isBlossomed) {
+        treeGroup.rotation.y += 0.01;
     }
 }
 
 function addDecorations() {
       const bulbColors = [0xff3333, 0xffd700, 0x3333ff, 0x00ff00, 0xffffff];
-      for (let i = 0; i < 40; i++) {
+      const decorationCount = isMobile ? 25 : 40; // 移动端减少装饰数量
+      for (let i = 0; i < decorationCount; i++) {
           const color = bulbColors[Math.floor(Math.random() * bulbColors.length)];
           const mat = new THREE.MeshStandardMaterial({
               color: color, emissive: color, emissiveIntensity: 0.6, roughness: 0.3
            });
-          const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 12), mat);
+          // 移动端减少几何体精度
+          const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3, isMobile ? 8 : 12, isMobile ? 8 : 12), mat);
           
           const angle = i * 0.5 + Math.random() * 0.2;
           const y = Math.random() * 16 + 2;
@@ -235,7 +346,7 @@ function addDecorations() {
 
 function createSnow() {
     // 移动端大量减少粒子数量以保证流畅度
-    const particleCount = isMobile ? 500 : 1500;
+    const particleCount = isMobile ? 300 : 1500;
     const geo = new THREE.BufferGeometry();
     const pos = []; const vel = [];
     for (let i = 0; i < particleCount; i++) {
@@ -243,7 +354,13 @@ function createSnow() {
         vel.push((Math.random()-0.5)*0.1, Math.random()*-0.15-0.05, (Math.random()-0.5)*0.1);
     }
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.4, transparent: true, opacity: 0.8 });
+    const mat = new THREE.PointsMaterial({ 
+        color: 0xffffff, 
+        size: isMobile ? 0.3 : 0.4, 
+        transparent: true, 
+        opacity: 0.7, 
+        blending: THREE.AdditiveBlending
+    });
     snowSystem = new THREE.Points(geo, mat);
     snowSystem.userData = { velocities: vel };
     scene.add(snowSystem);
@@ -254,21 +371,35 @@ function setupUIEvents() {
     const bgMusic = document.getElementById('bg-music');
     const musicInput = document.getElementById('music-input');
 
-    // --- 1. 音乐播放/暂停逻辑 (保持原有逻辑，增加一点容错) ---
+    // --- 1. 音乐播放/暂停逻辑 (优化用户体验) ---
     musicBtn.addEventListener('click', () => {
+        // 检查音乐源是否为空
+        if (!bgMusic.currentSrc || bgMusic.currentSrc === window.location.href) {
+            alert("请先选择一首音乐文件~");
+            return;
+        }
+        
         if (gameState.isMusicPlaying) {
+            // 暂停音乐
             bgMusic.pause();
             musicBtn.textContent = "🎵 播放音乐";
+            gameState.isMusicPlaying = false;
         } else {
-            // 尝试播放，如果报错（比如没加载好）则捕获错误
+            // 尝试播放
             bgMusic.play().then(() => {
                 musicBtn.textContent = "⏸ 暂停音乐";
+                gameState.isMusicPlaying = true;
             }).catch(e => {
                 console.log("播放失败或被拦截:", e);
-                alert("请先点击屏幕或上传有效的音乐文件~");
+                if (e.name === 'NotAllowedError') {
+                    alert("播放被浏览器拦截，请先点击屏幕再尝试播放音乐~");
+                } else if (e.name === 'NotSupportedError') {
+                    alert("当前浏览器不支持播放此音频文件，请尝试其他格式~");
+                } else {
+                    alert("播放失败，请检查音频文件是否有效~");
+                }
             });
         }
-        gameState.isMusicPlaying = !gameState.isMusicPlaying;
     });
 
     // --- 2. 新增：监听音乐上传 ---
@@ -288,24 +419,68 @@ function setupUIEvents() {
         // 替换音频源
         bgMusic.src = fileURL;
         
-        // 提示用户并重置状态
-        musicBtn.textContent = "🎵 播放新歌";
-        gameState.isMusicPlaying = false; // 重置播放状态标记
+        // 重置播放状态
+        gameState.isMusicPlaying = false;
         
-        alert(`已切换为: ${file.name}`);
+        // 显示加载状态
+        musicBtn.textContent = "⏳ 加载中...";
+        musicBtn.disabled = true;
+        
+        // 监听音频加载完成事件
+        bgMusic.onloadeddata = () => {
+            // 音频加载完成后更新UI
+            musicBtn.textContent = "🎵 播放新歌";
+            musicBtn.disabled = false;
+            alert(`已切换为: ${file.name}`);
+        };
+        
+        // 监听加载错误事件
+        bgMusic.onerror = () => {
+            musicBtn.textContent = "📂 选歌";
+            musicBtn.disabled = false;
+            alert(`无法加载音频文件: ${file.name}`);
+        };
     });
 
     // --- 其他原有事件保持不变 ---
     document.getElementById('file-input').addEventListener('change', handleImageUpload);
     document.getElementById('cam-btn').addEventListener('click', enableCam);
     
-    // 3. 主题文本更新逻辑 (确保 2D HTML 标题更新)
+    // 3. 主题文本更新逻辑 - 添加空值检查
     const themeTextInput = document.getElementById('theme-text-input');
     const headerTitle = document.querySelector('#ui-panel h1');
-    themeTextInput.addEventListener('input', (event) => {
-        const text = event.target.value.trim() === "" ? "My Christmas Gift For You" : event.target.value;
-        headerTitle.textContent = text;
-    });
+    if (themeTextInput && headerTitle) {
+        themeTextInput.addEventListener('input', (event) => {
+            const text = event.target.value.trim() === "" ? "My Christmas Gift For You" : event.target.value;
+            headerTitle.textContent = text;
+        });
+    }
+    
+    // 4. 互动说明弹窗逻辑
+    const showGestureModalBtn = document.getElementById('show-gesture-modal-btn');
+    const gestureModal = document.getElementById('gesture-modal');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    
+    // 显示弹窗
+    if (showGestureModalBtn && gestureModal) {
+        showGestureModalBtn.addEventListener('click', () => {
+            gestureModal.classList.add('visible');
+        });
+    }
+    
+    // 隐藏弹窗
+    if (closeModalBtn && gestureModal) {
+        closeModalBtn.addEventListener('click', () => {
+            gestureModal.classList.remove('visible');
+        });
+        
+        // 点击弹窗外部关闭弹窗
+        gestureModal.addEventListener('click', (event) => {
+            if (event.target === gestureModal) {
+                gestureModal.classList.remove('visible');
+            }
+        });
+    }
 }
 
 function handleImageUpload(event) {
@@ -455,8 +630,8 @@ function onTouchStart(event) {
     if (event.touches.length > 1) return;
     mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
-    // 触摸事件需要延迟一点点执行，避免和 controls 冲突
-    setTimeout(checkIntersection, 100); 
+    // 优化触摸事件，立即执行但检测是否有移动
+    checkIntersection();
 }
 
 function onMouseClick(event) {
@@ -466,17 +641,40 @@ function onMouseClick(event) {
 }
 
 
-// --- MediaPipe 及其他函数保持不变 ---
+// --- MediaPipe 函数优化 --- 
 
 async function setupMediaPipe() {
-    const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
-    handLandmarker = await HandLandmarker.createFromOptions(vision, {
-        baseOptions: {
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-            delegate: "GPU"
-        },
-        runningMode: "VIDEO", numHands: 1
-    });
+    try {
+        // 尝试从CDN加载MediaPipe资源，添加超时处理
+        const visionPromise = FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
+        
+        // 添加30秒超时
+        const vision = await Promise.race([
+            visionPromise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('MediaPipe加载超时')), 30000))
+        ]);
+        
+        // 创建HandLandmarker实例
+        handLandmarker = await HandLandmarker.createFromOptions(vision, {
+            baseOptions: {
+                modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+                delegate: "GPU" // 始终使用GPU以提高识别速度和准确性
+            },
+            runningMode: "VIDEO", 
+            numHands: 1,
+            minHandDetectionConfidence: 0.5,
+            minHandPresenceConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        
+        console.log("MediaPipe加载成功");
+    } catch (error) {
+        console.error("MediaPipe加载失败:", error);
+        // 可以选择向用户显示友好的错误信息
+        // alert("手势识别功能加载失败，请检查网络连接后刷新页面重试。");
+        // 不中断应用运行，其他功能仍可使用
+        handLandmarker = null;
+    }
 }
 
 function enableCam() {
@@ -494,53 +692,62 @@ function enableCam() {
     });
 }
 
-let lastVideoTime = -1;
 async function predictWebcam() {
-    if (handLandmarker && webcam.currentTime !== lastVideoTime) {
+    // 控制预测频率，调整为更适合手势识别的频率
+    const currentTime = performance.now();
+    const predictionInterval = isMobile ? 60 : 40; // 提高预测频率，确保手势及时识别
+    
+    if (handLandmarker && webcam.currentTime !== lastVideoTime && currentTime - lastPredictionTime > predictionInterval) {
         lastVideoTime = webcam.currentTime;
-        const results = handLandmarker.detectForVideo(webcam, performance.now());
+        lastPredictionTime = currentTime;
+        
+        try {
+            const results = await handLandmarker.detectForVideo(webcam, currentTime);
 
-        let targetSpeed = gameState.baseSpeed;
-        let isOKGesture = false;
+            let targetSpeed = gameState.baseSpeed;
+            let isOKGesture = false;
 
-        if (results.landmarks.length > 0 && !gameState.zoomedGift) { 
-            const landmarks = results.landmarks[0];
-            const wrist = landmarks[0];
-            const fingersTips = [8, 12, 16, 20].map(i => landmarks[i]);
-            const indexTip = landmarks[8];
-            const thumbTip = landmarks[4];
+            if (results.landmarks.length > 0 && !gameState.zoomedGift) { 
+                const landmarks = results.landmarks[0];
+                const wrist = landmarks[0];
+                const fingersTips = [8, 12, 16, 20].map(i => landmarks[i]);
+                const indexTip = landmarks[8];
+                const thumbTip = landmarks[4];
+                
+                // 1. 握拳/张手 - 调整阈值，提高灵敏度
+                const avgDist = fingersTips.reduce((acc, p) => acc + Math.hypot(p.x - wrist.x, p.y - wrist.y), 0) / 4;
+
+                if (avgDist < 0.3) { // 降低阈值，更容易识别握拳
+                    targetSpeed = gameState.fastSpeed; 
+                } else if (avgDist > 0.4) { // 降低阈值，更容易识别张手
+                    targetSpeed = 0; 
+                } else {
+                    targetSpeed = gameState.baseSpeed;
+                }
+                
+                // 2. OK 手势 - 调整阈值，提高灵敏度
+                const distThumbIndex = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+                const middleWristDist = Math.hypot(landmarks[12].x - wrist.x, landmarks[12].y - wrist.y);
+
+                if (distThumbIndex < 0.08 && middleWristDist > 0.25) { // 调整阈值，提高OK手势识别率
+                    isOKGesture = true;
+                }
+            }
             
-            // 1. 握拳/张手
-            const avgDist = fingersTips.reduce((acc, p) => acc + Math.hypot(p.x - wrist.x, p.y - wrist.y), 0) / 4;
-
-            if (avgDist < 0.25) { 
-                targetSpeed = gameState.fastSpeed; 
-            } else if (avgDist > 0.35) { 
-                targetSpeed = 0; 
+            gameState.rotationSpeed += (targetSpeed - gameState.rotationSpeed) * 0.1;
+            
+            if (isOKGesture) {
+                if (!webcam.gestureLock || currentTime - webcam.gestureLock > 1000) {
+                    startBlossomAnimation();
+                    webcam.gestureLock = currentTime;
+                }
             } else {
-                targetSpeed = gameState.baseSpeed;
+                if (webcam.gestureLock && currentTime - webcam.gestureLock > 1000) {
+                    webcam.gestureLock = 0;
+                }
             }
-            
-            // 2. OK 手势
-            const distThumbIndex = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
-            const middleWristDist = Math.hypot(landmarks[12].x - wrist.x, landmarks[12].y - wrist.y);
-
-            if (distThumbIndex < 0.06 && middleWristDist > 0.3) {
-                isOKGesture = true;
-            }
-        }
-        
-        gameState.rotationSpeed += (targetSpeed - gameState.rotationSpeed) * 0.1;
-        
-        if (isOKGesture) {
-            if (!webcam.gestureLock || performance.now() - webcam.gestureLock > 1000) {
-                startBlossomAnimation();
-                webcam.gestureLock = performance.now();
-            }
-        } else {
-            if (webcam.gestureLock && performance.now() - webcam.gestureLock > 1000) {
-                webcam.gestureLock = 0;
-            }
+        } catch (error) {
+            console.error("手势识别错误:", error);
         }
     }
     requestAnimationFrame(predictWebcam);
