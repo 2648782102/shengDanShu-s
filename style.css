@@ -3,12 +3,13 @@
     --secondary-color: #27ae60; /* 圣诞绿 */
     --accent-color: #f1c40f; /* 金色 */
     --text-light: #ecf0f1;
+    --modal-bg: rgba(27, 40, 69, 0.95); /* 深蓝色半透明背景 */
 }
 
 body {
     margin: 0;
     overflow: hidden;
-    background: linear-gradient(to bottom, #090919 0%, #1b2845 100%); /* 星空渐变 */
+    background: linear-gradient(to bottom, #090919 0%, #1b2845 100%); 
     font-family: 'Poppins', sans-serif;
     color: var(--text-light);
     touch-action: none;
@@ -24,49 +25,55 @@ body {
     height: 100vh;
 }
 
-/* --- UI 面板适配 --- */
+/* --- UI 面板 (桌面版样式) --- */
 #ui-panel {
     position: absolute;
     top: 30px; left: 30px;
     z-index: 10;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(15px); /* 磨砂玻璃 */
+    background: rgba(255, 255, 255, 0.1); 
+    backdrop-filter: blur(15px); 
     -webkit-backdrop-filter: blur(15px);
     padding: 20px;
     border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.15);
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    max-width: 380px; /* 稍微放大以便容纳输入框 */
+    max-width: 380px; 
     max-height: 80vh; 
     overflow-y: auto; 
     transition: all 0.3s ease;
 }
+
+/* 桌面端隐藏移动端互动按钮 */
+#mobile-gesture-btn-container {
+    display: none;
+}
+
 
 /* --- 移动端核心适配 --- */
 @media (max-width: 768px) {
     #ui-panel {
         top: auto;
         left: 50%;
-        bottom: 20px; /* 沉底显示 */
-        transform: translateX(-50%); /* 居中 */
-        width: 90%; /* 宽度占比 */
+        bottom: 20px; 
+        transform: translateX(-50%); 
+        width: 90%; 
         max-width: none;
         padding: 15px;
         margin-bottom: env(safe-area-inset-bottom);
-        max-height: 50vh; /* 手机上只占屏幕下半部分 */
+        max-height: 50vh; 
         background: rgba(0, 0, 0, 0.4); 
     }
 
-    #ui-panel h1 {
-        font-size: 1.4rem; 
-        margin-bottom: 10px;
-    }
-    
-    .gestures-box {
-        display: none; /* 手机上隐藏手势说明，节省空间 */
+    /* 优化移动端按钮尺寸 (修复按钮过大问题) */
+    .btn {
+        padding: 10px 15px; /* 减小内边距 */
+        font-size: 0.9rem;
+        min-width: auto; /* 取消最小宽度限制 */
     }
 }
 
+
+/* --- 通用样式 (保持不变) --- */
 #ui-panel h1 {
     font-family: 'Cinzel Decorative', cursive;
     margin: 0 0 20px 0;
@@ -123,37 +130,6 @@ body {
 .gestures-box h3 { margin: 0 0 10px 0; color: var(--accent-color); font-size: 1.1rem;}
 .gestures-box p { margin: 5px 0; font-size: 0.85rem; opacity: 0.9; }
 
-/* 新增：主题文本输入框样式 */
-.text-input {
-    width: 90%;
-    padding: 10px 15px;
-    border: 2px solid var(--accent-color); 
-    border-radius: 10px;
-    background: rgba(0, 0, 0, 0.4); 
-    color: var(--text-light);
-    font-size: 1rem;
-    outline: none;
-    transition: all 0.3s ease;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
-}
-
-.text-input::placeholder {
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.text-input:focus {
-    border-color: #ffd700; 
-    box-shadow: 0 0 5px #ffd700;
-}
-
-@media (max-width: 768px) {
-    .text-input {
-        padding: 8px 10px;
-        font-size: 0.9rem;
-    }
-}
-
-/* --- 摄像头窗口适配 --- */
 .cam-wrapper {
     position: absolute;
     bottom: 20px; right: 20px;
@@ -192,3 +168,66 @@ body {
     transition: opacity 0.6s ease-out;
 }
 .loader-content { text-align: center; color: var(--accent-color); }
+
+
+/* --- MODAL (弹窗) 样式 --- */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6); 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 500; 
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.modal-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-content {
+    background: var(--modal-bg);
+    backdrop-filter: blur(10px);
+    padding: 30px;
+    border-radius: 15px;
+    max-width: 90%;
+    width: 400px;
+    text-align: center;
+    border: 2px solid var(--accent-color);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    transform: translateY(-50px);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    opacity: 0;
+}
+
+.modal-overlay.visible .modal-content {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.modal-content h3 {
+    font-family: 'Cinzel Decorative', cursive;
+    color: var(--accent-color);
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+}
+
+.modal-content p {
+    margin: 10px 0;
+    font-size: 1rem;
+    line-height: 1.5;
+    text-align: left;
+    padding-left: 20px;
+}
+
+.modal-content .btn {
+    margin-top: 25px;
+    width: 80%;
+}
